@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>首页 · 医院门诊挂号</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="top">
+    <div class="top-inner">
+      <h1>医院门诊挂号管理系统</h1>
+      <p class="tagline">门诊挂号 · 信息管理</p>
+      <div class="nav">
+        <a href="index.html" class="cur">首页</a>
+        <a href="login.html">登录</a>
+        <a href="departments.html">科室信息</a>
+        <a href="doctors.html">医生信息</a>
+        <a href="patients.html">患者信息</a>
+        <a href="registration.html">挂号管理</a>
+        <a href="schedule.html">每日号源</a>
+        <a href="statistics.html">数据统计</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <h2>欢迎使用</h2>
+    <p class="page-lead">请按门诊常见顺序操作：先维护患者档案，再了解科室与医生，最后完成挂号登记。</p>
+
+    <h3>推荐办理顺序</h3>
+    <ol class="hint" style="padding-left: 1.25rem; max-width: 42rem">
+      <li><strong>管理员登录</strong>：工作人员先在「登录」页面完成身份认证，方可进入系统。</li>
+      <li><strong>患者建档</strong>：首次来院者在「患者信息」中登记，获得患者编号。</li>
+      <li><strong>了解排班</strong>：在「科室信息」「医生信息」中查看科室与出诊医生，在「每日号源」中设置日号源。</li>
+      <li><strong>现场挂号</strong>：在「挂号管理」中按向导选择患者、科室与医生，支持智能推荐科室，号源已满时可使用加急通道。</li>
+      <li><strong>就诊与统计</strong>：就诊后更新挂号状态；在「数据统计」查看汇总。</li>
+    </ol>
+
+    <h3>快捷入口</h3>
+    <div class="flow-grid">
+      <a class="flow-card" href="patients.html">
+        <span class="step-num">1</span>
+        <h3>患者信息</h3>
+        <p>建档、查询与维护患者档案</p>
+      </a>
+      <a class="flow-card" href="departments.html">
+        <span class="step-num">2</span>
+        <h3>科室信息</h3>
+        <p>查看科室介绍与编号</p>
+      </a>
+      <a class="flow-card" href="doctors.html">
+        <span class="step-num">3</span>
+        <h3>医生信息</h3>
+        <p>按科室筛选出诊医生</p>
+      </a>
+      <a class="flow-card" href="schedule.html">
+        <span class="step-num">4</span>
+        <h3>每日号源</h3>
+        <p>设置每位医生的每日可挂号数量</p>
+      </a>
+      <a class="flow-card" href="registration.html">
+        <span class="step-num">5</span>
+        <h3>挂号管理</h3>
+        <p>智能推荐科室 · 加急挂号 · 状态维护</p>
+      </a>
+      <a class="flow-card" href="statistics.html">
+        <span class="step-num">6</span>
+        <h3>数据统计</h3>
+        <p>挂号量与状态分布</p>
+      </a>
+    </div>
+
+    <p class="hint">数据库：<code>hospital_registration</code>。请先启动 <code>backend</code> 服务并配置 <code>.env</code>。前端接口地址见 <code>frontend/js/api.js</code> 中的 <code>API_BASE</code>。</p>
+  </div>
+
+  <div class="bottom">医院门诊挂号管理系统</div>
+  <script src="js/api.js"></script>
+  <script>
+    // 首页：已登录则显示用户信息，未登录则跳转登录
+    if (!requireLogin()) {
+      // requireLogin 已自动 redirect
+    } else {
+      renderUserBar();
+    }
+  </script>
+</body>
+</html>

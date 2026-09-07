@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>数据统计 · 医院门诊挂号</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="top">
+    <div class="top-inner">
+      <h1>医院门诊挂号管理系统</h1>
+      <p class="tagline">门诊挂号 · 信息管理</p>
+      <div class="nav">
+        <a href="index.html">首页</a>
+        <a href="login.html">登录</a>
+        <a href="departments.html">科室信息</a>
+        <a href="doctors.html">医生信息</a>
+        <a href="patients.html">患者信息</a>
+        <a href="registration.html">挂号管理</a>
+        <a href="schedule.html">每日号源</a>
+        <a href="statistics.html" class="cur">数据统计</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <h2>数据统计</h2>
+    <p class="page-lead">汇总当前库中挂号条数与状态分布，以及各科室挂号量。</p>
+    <p id="msg" class="msg"></p>
+    <div class="boxes">
+      <span><b id="stat-total">—</b><br />挂号总数</span>
+      <span><b id="stat-pending">—</b><br />未就诊</span>
+      <span><b id="stat-visited">—</b><br />已就诊</span>
+      <span><b id="stat-cancelled">—</b><br />已取消</span>
+    </div>
+
+    <h2>各科室挂号量</h2>
+    <div class="table-wrap">
+      <table class="t">
+        <thead>
+          <tr>
+            <th>科室编号</th>
+            <th>科室名称</th>
+            <th>挂号量</th>
+          </tr>
+        </thead>
+        <tbody id="dept-stat-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bottom">医院门诊挂号管理系统</div>
+  <script src="js/api.js"></script>
+  <script src="js/statistics.js"></script>
+</body>
+</html>

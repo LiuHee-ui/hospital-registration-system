@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>医生信息 · 医院门诊挂号</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="top">
+    <div class="top-inner">
+      <h1>医院门诊挂号管理系统</h1>
+      <p class="tagline">门诊挂号 · 信息管理</p>
+      <div class="nav">
+        <a href="index.html">首页</a>
+        <a href="login.html">登录</a>
+        <a href="departments.html">科室信息</a>
+        <a href="doctors.html" class="cur">医生信息</a>
+        <a href="patients.html">患者信息</a>
+        <a href="registration.html">挂号管理</a>
+        <a href="schedule.html">每日号源</a>
+        <a href="statistics.html">数据统计</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <h2>医生信息</h2>
+    <p class="page-lead">维护出诊医生，挂号时将按科室筛选医生号源。</p>
+    <p id="msg" class="msg"></p>
+    <div class="btns">
+      <button type="button" id="btn-show-add">添加</button>
+    </div>
+    <p class="hint">打开页面会自动加载列表；筛选在本地过滤已加载数据。点击「添加」「修改」展开表单。</p>
+
+    <div class="form-panel frm">
+      <div class="frm-row">
+        <label>按科室筛选
+          <input type="text" id="filter-dept-id" maxlength="6" placeholder="科室编号，如 D001" />
+        </label>
+        <div class="frm-inline-actions">
+          <button type="button" id="btn-filter" class="btn-ghost">筛选</button>
+          <button type="button" id="btn-clear-filter" class="btn-ghost">显示全部</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-add" class="form-collapsible is-hidden">
+      <h3>新增医生</h3>
+      <form class="frm form-panel" id="form-add-doc" onsubmit="return false;">
+        <div class="frm-row">
+          <label>医生编号 <input type="text" id="add-doc-id" maxlength="8" placeholder="如 DOC00006" /></label>
+          <label>姓名 <input type="text" id="add-doc-name" maxlength="30" /></label>
+          <label>性别
+            <select id="add-doc-gender">
+              <option value="">请选择</option>
+              <option value="男">男</option>
+              <option value="女">女</option>
+            </select>
+          </label>
+          <label>职称 <input type="text" id="add-doc-title" maxlength="20" /></label>
+        </div>
+        <div class="frm-row">
+          <label>科室编号 <input type="text" id="add-doc-dept" maxlength="6" /></label>
+          <label>擅长方向 <input type="text" id="add-doc-spec" maxlength="200" placeholder="可留空" /></label>
+        </div>
+        <div class="btns">
+          <button type="button" id="btn-submit-add">提交添加</button>
+          <button type="button" id="btn-reset-add">清空表单</button>
+          <button type="button" id="btn-close-add" class="btn-ghost">收起</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="panel-edit" class="form-collapsible is-hidden">
+      <h3>修改医生</h3>
+      <p class="hint">数据来自当前选中行；医生编号不可改。</p>
+      <form class="frm form-panel" id="form-edit-doc" onsubmit="return false;">
+        <div class="frm-row">
+          <label>医生编号 <input type="text" id="edit-doc-id" readonly /></label>
+          <label>姓名 <input type="text" id="edit-doc-name" maxlength="30" /></label>
+          <label>性别
+            <select id="edit-doc-gender">
+              <option value="男">男</option>
+              <option value="女">女</option>
+            </select>
+          </label>
+          <label>职称 <input type="text" id="edit-doc-title" maxlength="20" /></label>
+        </div>
+        <div class="frm-row">
+          <label>科室编号 <input type="text" id="edit-doc-dept" maxlength="6" /></label>
+          <label>擅长方向 <input type="text" id="edit-doc-spec" maxlength="200" /></label>
+        </div>
+        <div class="btns">
+          <button type="button" id="btn-submit-edit">保存修改</button>
+          <button type="button" id="btn-close-edit" class="btn-ghost">收起</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      <table class="t">
+        <thead>
+          <tr>
+            <th>医生编号</th>
+            <th>姓名</th>
+            <th>性别</th>
+            <th>职称</th>
+            <th>科室编号</th>
+            <th>擅长方向</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="doctor-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bottom">医院门诊挂号管理系统</div>
+  <script src="js/api.js"></script>
+  <script src="js/doctors.js"></script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>患者信息 · 医院门诊挂号</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="top">
+    <div class="top-inner">
+      <h1>医院门诊挂号管理系统</h1>
+      <p class="tagline">门诊挂号 · 信息管理</p>
+      <div class="nav">
+        <a href="index.html">首页</a>
+        <a href="login.html">登录</a>
+        <a href="departments.html">科室信息</a>
+        <a href="doctors.html">医生信息</a>
+        <a href="patients.html" class="cur">患者信息</a>
+        <a href="registration.html">挂号管理</a>
+        <a href="schedule.html">每日号源</a>
+        <a href="statistics.html">数据统计</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <h2>患者信息</h2>
+    <p class="page-lead">挂号前需先建档；此处维护患者编号、身份证号、病史等信息。</p>
+    <p id="msg" class="msg"></p>
+    <div class="btns">
+      <button type="button" id="btn-show-add">添加</button>
+    </div>
+
+    <div id="panel-add" class="form-collapsible is-hidden">
+      <h3>新增患者</h3>
+      <form class="frm form-panel" id="form-add-patient" onsubmit="return false;">
+        <div class="frm-row">
+          <label>患者编号 <input type="text" id="add-pid" maxlength="10" placeholder="如 P20250005" /></label>
+          <label>姓名 <input type="text" id="add-pname" maxlength="30" /></label>
+          <label>性别
+            <select id="add-gender">
+              <option value="">请选择</option>
+              <option value="男">男</option>
+              <option value="女">女</option>
+            </select>
+          </label>
+        </div>
+        <div class="frm-row">
+          <label>年龄 <input type="number" id="add-age" min="1" max="120" /></label>
+          <label>联系电话 <input type="text" id="add-phone" maxlength="20" /></label>
+          <label>出生日期 <input type="date" id="add-birth" /></label>
+        </div>
+        <div class="frm-row">
+          <label>身份证号 <input type="text" id="add-idcard" maxlength="18" placeholder="18位身份证号" /></label>
+        </div>
+        <label>
+          病史
+          <textarea id="add-history" rows="2" maxlength="500" placeholder="如：高血压、糖尿病等（选填）…"></textarea>
+        </label>
+        <div class="btns">
+          <button type="button" id="btn-submit-add">提交添加</button>
+          <button type="button" id="btn-reset-add">清空表单</button>
+          <button type="button" id="btn-close-add" class="btn-ghost">收起</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="panel-edit" class="form-collapsible is-hidden">
+      <h3>修改患者</h3>
+      <p class="hint">数据来自当前选中行；患者编号不可改。</p>
+      <form class="frm form-panel" id="form-edit-patient" onsubmit="return false;">
+        <div class="frm-row">
+          <label>患者编号 <input type="text" id="edit-pid" readonly /></label>
+          <label>姓名 <input type="text" id="edit-pname" maxlength="30" /></label>
+          <label>性别
+            <select id="edit-gender">
+              <option value="男">男</option>
+              <option value="女">女</option>
+            </select>
+          </label>
+        </div>
+        <div class="frm-row">
+          <label>年龄 <input type="number" id="edit-age" min="1" max="120" /></label>
+          <label>联系电话 <input type="text" id="edit-phone" maxlength="20" /></label>
+          <label>出生日期 <input type="date" id="edit-birth" /></label>
+        </div>
+        <div class="frm-row">
+          <label>身份证号 <input type="text" id="edit-idcard" maxlength="18" /></label>
+        </div>
+        <label>
+          病史
+          <textarea id="edit-history" rows="2" maxlength="500"></textarea>
+        </label>
+        <div class="btns">
+          <button type="button" id="btn-submit-edit">保存修改</button>
+          <button type="button" id="btn-close-edit" class="btn-ghost">收起</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      <table class="t">
+        <thead>
+          <tr>
+            <th>患者编号</th>
+            <th>姓名</th>
+            <th>性别</th>
+            <th>年龄</th>
+            <th>出生日期</th>
+            <th>身份证号</th>
+            <th>电话</th>
+            <th>病史</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="patient-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bottom">医院门诊挂号管理系统</div>
+  <script src="js/api.js"></script>
+  <script src="js/patients.js"></script>
+</body>
+</html>

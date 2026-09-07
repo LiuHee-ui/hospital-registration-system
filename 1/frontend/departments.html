@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>科室信息 · 医院门诊挂号</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="top">
+    <div class="top-inner">
+      <h1>医院门诊挂号管理系统</h1>
+      <p class="tagline">门诊挂号 · 信息管理</p>
+      <div class="nav">
+      <a href="index.html">首页</a>
+      <a href="login.html">登录</a>
+      <a href="departments.html" class="cur">科室信息</a>
+      <a href="doctors.html">医生信息</a>
+      <a href="patients.html">患者信息</a>
+      <a href="registration.html">挂号管理</a>
+      <a href="schedule.html">每日号源</a>
+      <a href="statistics.html">数据统计</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <h2>科室信息</h2>
+    <p class="page-lead">维护本院科室目录，供挂号时选择科室使用。</p>
+    <p id="msg" class="msg"></p>
+    <div class="btns">
+      <button type="button" id="btn-show-add">添加</button>
+    </div>
+    <p class="hint">打开页面会加载列表；提交「添加」后新科室会立刻出现在表格中。修改前请先在表格中选中一行。</p>
+
+    <div id="panel-add" class="form-collapsible is-hidden">
+      <h3>新增科室</h3>
+      <form class="frm form-panel" id="form-add-dept" onsubmit="return false;">
+        <div class="frm-row">
+          <label>科室编号 <input type="text" id="add-dept-id" maxlength="6" placeholder="如 D005" /></label>
+          <label>科室名称 <input type="text" id="add-dept-name" maxlength="50" /></label>
+        </div>
+        <label>科室简介 <textarea id="add-dept-intro" rows="3" maxlength="500" placeholder="可留空"></textarea></label>
+        <div class="btns">
+          <button type="button" id="btn-submit-add">提交添加</button>
+          <button type="button" id="btn-reset-add">清空表单</button>
+          <button type="button" id="btn-close-add" class="btn-ghost">收起</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="panel-edit" class="form-collapsible is-hidden">
+      <h3>修改科室</h3>
+      <p class="hint">下方数据来自当前选中的表格行，可直接改名称或简介后保存。</p>
+      <form class="frm form-panel" id="form-edit-dept" onsubmit="return false;">
+        <div class="frm-row">
+          <label>科室编号 <input type="text" id="edit-dept-id" readonly /></label>
+          <label>科室名称 <input type="text" id="edit-dept-name" maxlength="50" /></label>
+        </div>
+        <label>科室简介 <textarea id="edit-dept-intro" rows="3" maxlength="500"></textarea></label>
+        <div class="btns">
+          <button type="button" id="btn-submit-edit">保存修改</button>
+          <button type="button" id="btn-close-edit" class="btn-ghost">收起</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      <table class="t">
+        <thead>
+          <tr>
+            <th>科室编号</th>
+            <th>科室名称</th>
+            <th>科室简介</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="dept-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bottom">医院门诊挂号管理系统 · 数据库课程设计</div>
+  <script src="js/api.js"></script>
+  <script src="js/departments.js"></script>
+</body>
+</html>

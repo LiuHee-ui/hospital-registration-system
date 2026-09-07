@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>挂号管理 · 医院门诊挂号</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="top">
+    <div class="top-inner">
+      <h1>医院门诊挂号管理系统</h1>
+      <p class="tagline">门诊挂号 · 信息管理</p>
+      <div class="nav">
+        <a href="index.html">首页</a>
+        <a href="login.html">登录</a>
+        <a href="departments.html">科室信息</a>
+        <a href="doctors.html">医生信息</a>
+        <a href="patients.html">患者信息</a>
+        <a href="registration.html" class="cur">挂号管理</a>
+        <a href="schedule.html">每日号源</a>
+        <a href="statistics.html">数据统计</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <h2>门诊挂号</h2>
+    <p class="page-lead">向导式登记：患者信息实名登记 → 智能推荐科室 → 选择医生 → 生成挂号单。</p>
+
+    <ul class="workflow-bar" aria-label="挂号步骤">
+      <li class="is-current"><strong>1</strong> 患者信息登记</li>
+      <li><strong>2</strong> 智能推荐科室</li>
+      <li><strong>3</strong> 选择科室与医生</li>
+      <li><strong>4</strong> 生成挂号单</li>
+    </ul>
+
+    <p id="msg" class="msg"></p>
+
+    <div class="btns">
+      <button type="button" id="btn-show-new">新建挂号</button>
+      <button type="button" id="btn-show-status" class="btn-ghost">改就诊状态</button>
+    </div>
+
+    <!-- ===== 挂号表单 ===== -->
+    <div id="panel-new" class="form-collapsible is-hidden">
+      <form class="frm form-panel frm-reg" id="reg-form" onsubmit="return false;">
+
+        <!-- 步骤1：患者信息登记 -->
+        <div class="reg-section">
+          <div class="reg-section-title"><span class="reg-section-num">1</span> 患者信息实名登记</div>
+
+          <!-- 拍照识别 -->
+          <div class="camera-section">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button type="button" id="btn-open-camera" class="btn-camera">
+                <span class="camera-icon">📷</span> 拍照识别身份信息
+              </button>
+              <button type="button" id="btn-upload-photo" class="btn-upload">
+                <span class="camera-icon"></span> 上传照片识别
+              </button>
+              <input type="file" id="file-photo-input" accept="image/*" style="display:none;" />
+            </div>
+            <div id="camera-panel" class="camera-panel is-hidden">
+              <video id="camera-video" autoplay playsinline></video>
+              <canvas id="camera-canvas" class="is-hidden"></canvas>
+              <div class="camera-btns">
+                <button type="button" id="btn-capture" class="btn-capture">📸 拍照</button>
+                <button type="button" id="btn-close-camera" class="btn-ghost btn-sm">关闭摄像头</button>
+              </div>
+              <div id="camera-preview" class="camera-preview is-hidden">
+                <img id="camera-img" alt="拍摄照片" />
+                <p class="camera-recog-status" id="camera-status">识别中…</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="frm-row">
+            <label>
+              姓名
+              <input type="text" id="patient-name" maxlength="30" placeholder="请输入姓名…" />
+            </label>
+            <label>
+              性别
+              <select id="patient-gender">
+                <option value="">请选择…</option>
+                <option value="男">男</option>
+                <option value="女">女</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="frm-row">
+            <label>
+              出生日期
+              <input type="date" id="patient-birth" />
+            </label>
+            <label>
+              联系电话（选填）
+              <input type="text" id="patient-phone" maxlength="20" placeholder="选填…" />
+            </label>
+          </div>
+
+          <!-- 身份证号 -->
+          <div class="frm-row">
+            <label>
+              身份证号
+              <input type="text" id="id-card" maxlength="18" placeholder="18位身份证号码…" />
+            </label>
+            <div class="frm-inline-actions">
+              <button type="button" id="btn-gen-idcard" class="btn-ghost">生成仿真号</button>
+            </div>
+          </div>
+
+          <label>
+            既往病史
+            <textarea id="patient-history" rows="2" maxlength="500" placeholder="如：高血压、糖尿病、手术史等（选填）…"></textarea>
+          </label>
+          <p class="hint">患者信息将与人证合一验证，请如实填写。身份证号以44开头。</p>
+        </div>
+
+        <!-- 步骤2：智能推荐科室 -->
+        <div class="reg-section">
+          <div class="reg-section-title"><span class="reg-section-num">2</span> 智能推荐科室（可选）</div>
+          <label>
+            病情描述
+            <textarea id="symptom-input" rows="3" maxlength="300" placeholder="请简要描述症状，如「最近持续头痛头晕，有时眩晕」，系统将自动推荐科室…"></textarea>
+          </label>
+          <div class="btns" style="margin: 8px 0;">
+            <button type="button" id="btn-recommend" class="btn-ghost">🔍 智能推荐科室</button>
+          </div>
+          <div id="recommend-result" class="recommend-box is-hidden"></div>
+        </div>
+
+        <!-- 步骤3：选择科室与医生 -->
+        <div class="reg-section">
+          <div class="reg-section-title"><span class="reg-section-num">3</span> 选择科室与接诊医生</div>
+          <label>
+            科室
+            <select id="sel-dept">
+              <option value="">请先选择科室…</option>
+            </select>
+          </label>
+          <p class="hint">选择科室后将展示该科室所有医生，可滑动浏览选择。</p>
+
+          <!-- 医生卡片滑动区 -->
+          <div id="doctor-cards-container" class="doctor-cards-container is-hidden">
+            <div class="doctor-cards-title">该科室医生列表（点击选择）</div>
+            <div class="doctor-cards" id="doctor-cards"></div>
+          </div>
+
+          <div id="quota-info" class="quota-info-bar is-hidden"></div>
+          <div id="doctor-intro" class="doctor-intro-bar is-hidden"></div>
+        </div>
+
+        <!-- 步骤4：挂号单信息 -->
+        <div class="reg-section">
+          <div class="reg-section-title"><span class="reg-section-num">4</span> 挂号单信息</div>
+          <div class="frm-row">
+            <label>
+              挂号编号
+              <input type="text" id="rid" maxlength="12" placeholder="打开表单时自动生成" readonly style="background:#f5f8fa;color:#5c6f7a;" />
+            </label>
+            <div class="frm-inline-actions">
+              <button type="button" id="btn-gen-id" class="btn-ghost">重新生成</button>
+            </div>
+          </div>
+          <label>
+            挂号时间（可选，默认当前时间）
+            <input type="datetime-local" id="rt-local" />
+          </label>
+          <div class="urgent-row">
+            <label class="urgent-label">
+              <input type="checkbox" id="chk-urgent" />
+              <span class="urgent-text">🚨 加急挂号（号源已满时可用，将排在加急队列）</span>
+            </label>
+          </div>
+          <p class="hint">新挂号就诊状态固定为「未就诊」。就诊完成后请在下方记录表中「改就诊状态」。</p>
+          <input type="hidden" id="st" value="未就诊" />
+        </div>
+
+        <div class="btns">
+          <input type="button" id="btn-submit" value="提交挂号" />
+          <input type="reset" id="btn-form-reset" value="清空表单" />
+          <button type="button" id="btn-close-new" class="btn-ghost">收起</button>
+        </div>
+      </form>
+    </div>
+
+    <h2>挂号记录</h2>
+    <p class="hint">单击一行可选中；点击「改就诊状态」可更新为已就诊或已取消。</p>
+
+    <div id="panel-status" class="form-collapsible is-hidden">
+      <div class="form-panel frm">
+        <div class="frm-row">
+          <label>将选中挂号改为
+            <select id="status-change">
+              <option value="未就诊">未就诊</option>
+              <option value="已就诊">已就诊</option>
+              <option value="已取消">已取消</option>
+            </select>
+          </label>
+          <div class="frm-inline-actions">
+            <button type="button" id="btn-apply-status">应用状态</button>
+            <button type="button" id="btn-close-status" class="btn-ghost">收起</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="t">
+        <thead>
+          <tr>
+            <th>挂号编号</th>
+            <th>患者</th>
+            <th>医生</th>
+            <th>科室</th>
+            <th>时间</th>
+            <th>加急</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="reg-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bottom">医院门诊挂号管理系统</div>
+  <script src="js/api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="js/registration.js"></script>
+</body>
+</html>

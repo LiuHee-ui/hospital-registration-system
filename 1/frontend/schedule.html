@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>每日号源 · 医院门诊挂号</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="top">
+    <div class="top-inner">
+      <h1>医院门诊挂号管理系统</h1>
+      <p class="tagline">门诊挂号 · 信息管理</p>
+      <div class="nav">
+        <a href="index.html">首页</a>
+        <a href="login.html">登录</a>
+        <a href="departments.html">科室信息</a>
+        <a href="doctors.html">医生信息</a>
+        <a href="patients.html">患者信息</a>
+        <a href="registration.html">挂号管理</a>
+        <a href="schedule.html" class="cur">每日号源</a>
+        <a href="statistics.html">数据统计</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <h2>每日号源管理</h2>
+    <p class="page-lead">为每位医生设置每日可接诊号源总数，挂号时系统将自动核查剩余号源；加急挂号不受号源限制。</p>
+
+    <p id="msg" class="msg"></p>
+
+    <!-- 日期筛选 -->
+    <div class="frm" style="margin-bottom: 16px;">
+      <div class="frm-row">
+        <label style="min-width:200px;">
+          按日期查询
+          <input type="date" id="filter-date" />
+        </label>
+        <div class="frm-inline-actions">
+          <button type="button" id="btn-filter" class="btn-ghost">查询</button>
+          <button type="button" id="btn-clear-filter" class="btn-ghost">显示全部</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button type="button" id="btn-show-add">新增排班号源</button>
+    </div>
+
+    <!-- 新增号源面板 -->
+    <div id="panel-add" class="form-collapsible is-hidden">
+      <form class="frm form-panel" id="add-form" onsubmit="return false;">
+        <h3 style="margin-top:0">新增排班号源</h3>
+        <div class="frm-row">
+          <label>
+            医生编号
+            <input type="text" id="add-doc-id" placeholder="如 DOC00001" maxlength="8" />
+          </label>
+          <label>
+            排班日期
+            <input type="date" id="add-date" />
+          </label>
+          <label>
+            号源总数
+            <input type="number" id="add-quota" min="1" max="200" placeholder="1–200" />
+          </label>
+        </div>
+        <p class="hint">一位医生同一天只能有一条排班记录。</p>
+        <div class="btns">
+          <input type="button" id="btn-submit-add" value="保存" />
+          <button type="button" id="btn-close-add" class="btn-ghost">收起</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 号源列表 -->
+    <div class="table-wrap">
+      <table class="t">
+        <thead>
+          <tr>
+            <th>排班ID</th>
+            <th>医生</th>
+            <th>科室</th>
+            <th>日期</th>
+            <th>总号源</th>
+            <th>已用</th>
+            <th>剩余</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="sched-body"></tbody>
+      </table>
+    </div>
+
+    <!-- 编辑号源 -->
+    <div id="panel-edit" class="form-collapsible is-hidden">
+      <div class="form-panel frm">
+        <h3 style="margin-top:0">修改号源总数</h3>
+        <input type="hidden" id="edit-sched-id" />
+        <div class="frm-row">
+          <label>
+            新的号源总数
+            <input type="number" id="edit-quota" min="1" max="200" placeholder="1–200" />
+          </label>
+          <div class="frm-inline-actions">
+            <button type="button" id="btn-submit-edit">保存修改</button>
+            <button type="button" id="btn-close-edit" class="btn-ghost">收起</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">医院门诊挂号管理系统</div>
+  <script src="js/api.js"></script>
+  <script src="js/schedule.js"></script>
+</body>
+</html>

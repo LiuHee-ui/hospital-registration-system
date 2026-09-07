@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>登录 · 医院门诊挂号</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0d6b7a 0%, #094e59 50%, #062f38 100%);
+      margin: 0;
+    }
+
+    .login-wrap {
+      width: 100%;
+      max-width: 420px;
+      padding: 0 16px;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 32px;
+      color: #fff;
+    }
+
+    .login-header .login-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .login-header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 0 6px;
+      letter-spacing: 0.05em;
+    }
+
+    .login-header p {
+      font-size: 0.875rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin: 0;
+    }
+
+    .login-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 36px 32px 28px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    }
+
+    .login-card h2 {
+      font-size: 1.2rem;
+      color: var(--color-primary-dark, #094e59);
+      margin: 0 0 20px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .login-card label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.875rem;
+      color: #1a2830;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+
+    .login-card label input {
+      padding: 10px 14px;
+      border: 1.5px solid #d5dee3;
+      border-radius: 8px;
+      font-size: 0.9375rem;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      width: 100%;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+
+    .login-card label input:focus {
+      border-color: #0d6b7a;
+      box-shadow: 0 0 0 3px rgba(13, 107, 122, 0.15);
+    }
+
+    .login-btns {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .login-btns input[type="button"] {
+      flex: 1;
+      padding: 11px;
+      background: #0d6b7a;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-family: inherit;
+    }
+
+    .login-btns input[type="button"]:hover {
+      background: #094e59;
+    }
+
+    .login-btns input[type="reset"] {
+      padding: 11px 18px;
+      background: transparent;
+      color: #5c6f7a;
+      border: 1.5px solid #d5dee3;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+
+    .login-btns input[type="reset"]:hover {
+      border-color: #0d6b7a;
+      color: #0d6b7a;
+    }
+
+    #msg {
+      font-size: 0.875rem;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+      min-height: 0;
+    }
+
+    #msg:empty { display: none; }
+
+    #msg.is-error {
+      background: #fce8e8;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    #msg.is-ok {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #c8e6c9;
+    }
+
+    .login-hint {
+      font-size: 0.78rem;
+      color: #8a9baa;
+      text-align: center;
+      margin: 16px 0 0;
+      line-height: 1.5;
+    }
+
+    .login-hint code {
+      background: #f0f4f5;
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #0d6b7a;
+      font-family: monospace;
+    }
+
+    .login-footer {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 0.75rem;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-header">
+      <span class="login-icon">🏥</span>
+      <h1>医院门诊挂号管理系统</h1>
+      <p>请使用工作账号登录系统</p>
+    </div>
+
+    <div class="login-card">
+      <h2>管理员登录</h2>
+      <p id="msg" class="msg"></p>
+      <form id="login-form" onsubmit="return false;">
+        <label>账号
+          <input type="text" name="user" id="account" autocomplete="username" placeholder="请输入账号" />
+        </label>
+        <label>密码
+          <input type="password" name="pwd" id="password" autocomplete="current-password" placeholder="请输入密码" />
+        </label>
+        <div class="login-btns">
+          <input type="button" id="btn-login" value="登 录" />
+          <input type="reset" value="重置" />
+        </div>
+      </form>
+      <p class="login-hint">
+              管理员账号：<code>admin</code>&nbsp;&nbsp;&nbsp;密码：<code>123456</code><br />
+              普通用户：<code>user</code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;密码：<code>123456</code>
+            </p>
+    </div>
+
+    <div class="login-footer">医院门诊挂号管理系统</div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>
