@@ -54,7 +54,7 @@
           <label>病情描述 *</label>
           <textarea v-model="description" rows="3" placeholder="请简要描述症状，如：发烧、咳嗽、胸闷"></textarea>
         </div>
-        <button @click="recommendDept" class="btn-primary" :disabled="!description || recommending">
+        <button @click="recommendDeptApi" class="btn-primary" :disabled="!description || recommending">
           {{ recommending ? '推荐中...' : '智能推荐' }}
         </button>
         <div v-if="recommendResults.length" class="recommend-results">
@@ -86,11 +86,8 @@
           <div class="doctor-name">{{ doc.doctor_name }}</div>
           <div class="doctor-info">{{ doc.title }} | {{ getDeptName(doc.dept_id) }}</div>
           <div class="doctor-specialty">{{ doc.specialty || '专长未填写' }}</div>
-          <div class="quota-info">
-            剩余号源：{{ getRemainQuota(doc.doctor_id) }}
-          </div>
         </div>
-        <div v-if="!filteredDoctors.length" class="empty">该科室暂无医生排班</div>
+        <div v-if="!filteredDoctors.length" class="empty">该科室暂无医生</div>
       </div>
     </div>
 
@@ -113,7 +110,7 @@
         <div class="confirm-item">
           <label>是否加急：</label>
           <label class="checkbox-label">
-            <input v-model="form.is_urgent" type="checkbox" /> 加急（加急挂号不受号源限制）
+            <input v-model="form.is_urgent" type="checkbox" /> 加急
           </label>
         </div>
         <div class="confirm-actions">
@@ -153,7 +150,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getDepartments, getDoctors, getSchedules, recommendDept as apiRecommendDept, addRegistration } from '@/api'
+import request from '../api/request'
 
 const steps = ['患者登记', '智能分诊', '选择医生', '确认挂号']
 const currentStep = ref(0)
@@ -171,10 +168,23 @@ const submitting = ref(false)
 const successData = ref(null)
 
 onMounted(async () => {
-  departments.value = await getDepartments()
-  doctors.value = await getDoctors()
-  schedules.value = await getSchedules()
+  await loadData()
 })
+
+async function loadData() {
+  try {
+    const [dRes, docRes, schRes] = await Promise.all([
+      request.get('/api/departments'),
+      request.get('/api/doctors'),
+      request.get('/api/schedules')
+    ])
+    departments.value = dRes.data || dRes
+    doctors.value = docRes.data || docRes
+    schedules.value = schRes.data || schRes
+  } catch (e) {
+    console.error('加载数据失败', e)
+  }
+}
 
 const filteredDoctors = computed(() => {
   if (!selectedDeptId.value) return []
@@ -193,19 +203,15 @@ function getDeptName(dept_id) {
   return departments.value.find(d => d.dept_id === dept_id)?.dept_name || dept_id
 }
 
-function getRemainQuota(doctor_id) {
-  const today = new Date().toISOString().slice(0, 10)
-  const s = schedules.value.find(sc => sc.doctor_id === doctor_id && sc.sched_date === today)
-  return s ? s.remain_quota : '未知'
-}
-
 async function recommendDeptApi() {
+  if (!description.value) return
   recommending.value = true
   try {
-    const res = await apiRecommendDept(description.value)
+    const res = await request.post('/api/recommend-dept', { description: description.value })
     recommendResults.value = res.results || []
   } catch (e) {
-    alert(e.message)
+    console.error('推荐失败', e)
+    alert('推荐失败：' + e.message)
   } finally {
     recommending.value = false
   }
@@ -241,9 +247,8 @@ function resetForm() {
 async function submitRegistration() {
   submitting.value = true
   try {
-    // 生成挂号编号
     const reg_id = 'R' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + String(Math.floor(Math.random() * 10000)).padStart(4, '0')
-    await addRegistration({
+    await request.post('/api/registrations', {
       reg_id,
       patient_id: form.value.patient_id || 'TMP',
       doctor_id: selectedDoctorId.value,
@@ -257,7 +262,8 @@ async function submitRegistration() {
       reg_time: new Date().toLocaleString(),
     }
   } catch (e) {
-    alert(e.message)
+    console.error('挂号失败', e)
+    alert('挂号失败：' + (e.message || '请重试'))
   } finally {
     submitting.value = false
   }
@@ -288,8 +294,7 @@ async function submitRegistration() {
 .doctor-card.selected { border-color: #1976d2; background: #e3f2fd; }
 .doctor-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 .doctor-info { font-size: 13px; color: #666; margin-bottom: 4px; }
-.doctor-specialty { font-size: 12px; color: #999; margin-bottom: 8px; }
-.quota-info { font-size: 13px; color: #4caf50; font-weight: 500; }
+.doctor-specialty { font-size: 12px; color: #999; }
 .recommend-results { margin-top: 20px; }
 .recommend-results h4 { margin: 0 0 12px; }
 .recommend-item { padding: 12px 16px; background: #f5f5f5; border-radius: 6px; margin-bottom: 8px; cursor: pointer; border: 2px solid transparent; }
