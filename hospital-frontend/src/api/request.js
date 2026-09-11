@@ -1,11 +1,11 @@
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
 
 const request = axios.create({
   baseURL: '',
   timeout: 5000
 })
 
-// 请求拦截器：携带登录 Token
 request.interceptors.request.use(
   config => {
     const token = localStorage.getItem('token')
@@ -17,12 +17,11 @@ request.interceptors.request.use(
   error => Promise.reject(error)
 )
 
-// 响应拦截器：统一提取返回数据与错误提示
 request.interceptors.response.use(
   response => response.data,
   error => {
-    const msg = error.response?.data?.message || '网络请求异常'
-    alert(msg)
+    const msg = error.response?.data?.error || '网络请求异常'
+    ElMessage.error(msg)
     return Promise.reject(error)
   }
 )

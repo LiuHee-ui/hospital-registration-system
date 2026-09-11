@@ -26,6 +26,7 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             if (id.includes('vue') || id.includes('pinia')) return 'vue-vendor'
             if (id.includes('axios')) return 'network-vendor'
+            if (id.includes('element-plus')) return 'ui-vendor'
             if (id.includes('tesseract')) return 'ocr-vendor'
           }
         }
