@@ -21,11 +21,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // manualChunks 手动分包：核心框架 / 网络库 / OCR 工具各自独立
-        manualChunks: {
-          'vue-vendor': ['vue', 'vue-router', 'pinia'],
-          'network-vendor': ['axios'],
-          'ocr-vendor': ['tesseract.js']
+        // manualChunks 函数形式：Vite 8 + Rolldown 兼容写法
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('vue') || id.includes('pinia')) return 'vue-vendor'
+            if (id.includes('axios')) return 'network-vendor'
+            if (id.includes('tesseract')) return 'ocr-vendor'
+          }
         }
       }
     }
