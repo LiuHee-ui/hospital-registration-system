@@ -1,12 +1,16 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import AppLayout from '../layouts/AppLayout.vue'
 
+// 路由懒加载：各页面组件按需从服务器拉取，减小首屏资源体积
 const routes = [
   { path: '/', redirect: '/login' },
-  { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue') },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/LoginView.vue')
+  },
   {
     path: '/',
-    component: AppLayout,
+    component: () => import('../layouts/AppLayout.vue'),
     children: [
       { path: 'index', name: 'Home', component: () => import('../views/HomeView.vue') },
       { path: 'departments', name: 'Departments', component: () => import('../views/DepartmentsView.vue') },
@@ -28,11 +32,9 @@ router.beforeEach((to, from, next) => {
   const isLoginPage = to.path === '/login'
 
   if (!isLoginPage && !token) {
-    // 未登录访问受保护页面：强制跳转至登录页
     alert('请先登录系统！')
     next('/login')
   } else if (isLoginPage && token) {
-    // 已登录状态访问登录页：直接跳转至控制台
     next('/index')
   } else {
     next()

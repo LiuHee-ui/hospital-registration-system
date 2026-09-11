@@ -1,0 +1,40 @@
+name: Project CI Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 拉取代码
+      uses: actions/checkout@v4
+
+    - name: 设置 Node.js 环境
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+        cache: 'npm'
+        cache-dependency-path: hospital-frontend/package-lock.json
+
+    - name: 进入前端目录并安装依赖
+      run: |
+        cd hospital-frontend
+        npm ci
+
+    - name: 执行生产构建
+      run: |
+        cd hospital-frontend
+        npm run build
+
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      if: github.event_name == 'push'
+      with:
+        name: dist
+        path: hospital-frontend/dist/
+        retention-days: 7
