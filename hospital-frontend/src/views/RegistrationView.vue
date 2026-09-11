@@ -80,12 +80,16 @@
         <div
           v-for="doc in filteredDoctors"
           :key="doc.doctor_id"
-          :class="['doctor-card', { selected: selectedDoctorId === doc.doctor_id }]"
+          :class="['doctor-card', { selected: selectedDoctorId === doc.doctor_id, 'no-quota': doc.remainQuota <= 0 && !form.is_urgent }]"
           @click="selectDoctor(doc)"
         >
           <div class="doctor-name">{{ doc.doctor_name }}</div>
           <div class="doctor-info">{{ doc.title }} | {{ getDeptName(doc.dept_id) }}</div>
           <div class="doctor-specialty">{{ doc.specialty || '专长未填写' }}</div>
+          <div :class="['doctor-quota', { 'quota-zero': doc.remainQuota <= 0 }]">
+            剩余号源: {{ doc.remainQuota }}
+            <span v-if="doc.remainQuota <= 0 && !form.is_urgent">（号满，可勾选加急）</span>
+          </div>
         </div>
         <div v-if="!filteredDoctors.length" class="empty">该科室暂无医生</div>
       </div>
@@ -166,6 +170,7 @@ const selectedDoctorId = ref('')
 const recommending = ref(false)
 const submitting = ref(false)
 const successData = ref(null)
+const currentPatientId = ref('') // 存储当前患者ID（find-or-create 返回）
 
 onMounted(async () => {
   await loadData()
@@ -186,9 +191,22 @@ async function loadData() {
   }
 }
 
+// 医生及其当日剩余号源
 const filteredDoctors = computed(() => {
   if (!selectedDeptId.value) return []
-  return doctors.value.filter(d => d.dept_id === selectedDeptId.value)
+  const today = new Date().toISOString().slice(0, 10)
+  return doctors.value
+    .filter(d => d.dept_id === selectedDeptId.value)
+    .map(doc => {
+      // 查找该医生今日排班的剩余号源
+      const sched = schedules.value.find(
+        s => s.doctor_id === doc.doctor_id && s.sched_date === today
+      )
+      return {
+        ...doc,
+        remainQuota: sched ? sched.remain_quota : 0
+      }
+    })
 })
 
 const selectedDoctor = computed(() => doctors.value.find(d => d.doctor_id === selectedDoctorId.value))
@@ -223,13 +241,35 @@ function selectDept(r) {
 }
 
 function selectDoctor(doc) {
+  // 非加急但号源为0时提示
+  if (doc.remainQuota <= 0 && !form.value.is_urgent) {
+    alert('当前医生号源已满，请勾选"加急"后再试！')
+    return
+  }
   selectedDoctorId.value = doc.doctor_id
 }
 
-function nextStep() {
+async function nextStep() {
   if (currentStep.value === 1 && !selectedDeptId.value) {
     alert('请选择科室')
     return
+  }
+  // 步骤0：患者登记 -> 调用 find-or-create 创建或获取患者
+  if (currentStep.value === 0) {
+    try {
+      const res = await request.post('/api/patients/find-or-create', {
+        patient_name: form.value.patient_name,
+        gender: form.value.gender,
+        birth_date: form.value.birth_date,
+        phone: form.value.phone,
+        id_card: form.value.id_card,
+        medical_history: form.value.medical_history,
+      })
+      currentPatientId.value = res.patient.patient_id
+    } catch (e) {
+      alert('患者信息创建失败：' + (e.message || '请重试'))
+      return
+    }
   }
   currentStep.value++
 }
@@ -242,18 +282,38 @@ function resetForm() {
   recommendResults.value = []
   selectedDeptId.value = ''
   selectedDoctorId.value = ''
+  currentPatientId.value = ''
 }
 
 async function submitRegistration() {
   submitting.value = true
   try {
-    const reg_id = 'R' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + String(Math.floor(Math.random() * 10000)).padStart(4, '0')
+    const today = new Date().toISOString().slice(0, 10)
+    const selectedDoc = filteredDoctors.value.find(d => d.doctor_id === selectedDoctorId.value)
+
+    // 提交前二次校验：非加急且号源为0则拦截
+    if (selectedDoc && selectedDoc.remainQuota <= 0 && !form.value.is_urgent) {
+      alert('当前医生号源已满，请勾选"加急"后再试！')
+      submitting.value = false
+      return
+    }
+
+    const reg_id = 'R' + today.replace(/-/g, '') + String(Math.floor(Math.random() * 10000)).padStart(4, '0')
     await request.post('/api/registrations', {
       reg_id,
-      patient_id: form.value.patient_id || 'TMP',
+      patient_id: currentPatientId.value,
       doctor_id: selectedDoctorId.value,
       is_urgent: form.value.is_urgent,
     })
+
+    // 成功后扣减前端号源（普通号扣减，加急号不扣）
+    if (selectedDoc && selectedDoc.remainQuota > 0 && !form.value.is_urgent) {
+      const sched = schedules.value.find(
+        s => s.doctor_id === selectedDoctorId.value && s.sched_date === today
+      )
+      if (sched) sched.remain_quota--
+    }
+
     successData.value = {
       reg_id,
       patient_name: form.value.patient_name,
@@ -295,6 +355,10 @@ async function submitRegistration() {
 .doctor-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 .doctor-info { font-size: 13px; color: #666; margin-bottom: 4px; }
 .doctor-specialty { font-size: 12px; color: #999; }
+.doctor-quota { font-size: 13px; margin-top: 6px; color: #4caf50; font-weight: 500; }
+.doctor-quota.quota-zero { color: #f44336; }
+.doctor-card.no-quota { opacity: 0.7; cursor: not-allowed; }
+.doctor-card.no-quota:hover { border-color: #ddd; }
 .recommend-results { margin-top: 20px; }
 .recommend-results h4 { margin: 0 0 12px; }
 .recommend-item { padding: 12px 16px; background: #f5f5f5; border-radius: 6px; margin-bottom: 8px; cursor: pointer; border: 2px solid transparent; }

@@ -6,7 +6,13 @@ const { pool } = require('./db');
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(cors());
+// CORS 白名单配置
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'X-Auth-Token'],
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -46,7 +52,9 @@ app.post(
     if (!rows.length) {
       return res.status(401).json({ error: '账号或密码错误' });
     }
-    res.json({ ok: true, account: rows[0].account, perm_type: rows[0].perm_type });
+    // 使用 cryptographically secure random token
+    const token = crypto.randomBytes(32).toString('hex');
+    res.json({ ok: true, token, account: rows[0].account, perm_type: rows[0].perm_type });
   }),
 );
 
@@ -367,15 +375,22 @@ app.post(
       'SELECT sched_id, total_quota, used_quota FROM daily_schedule WHERE doctor_id = ? AND sched_date = ? LIMIT 1',
       [doctor_id, regDate]
     );
-    if (scheduleRow) {
-      if (!urgent && scheduleRow.used_quota >= scheduleRow.total_quota) {
+    // 非加急必须检查排班和号源
+    if (!urgent) {
+      if (!scheduleRow) {
+        return res.status(409).json({ error: '该医生当日未安排排班，请选择加急或其他医生' });
+      }
+      if (scheduleRow.used_quota >= scheduleRow.total_quota) {
         return res.status(409).json({ error: '当日号源已满，请选择加急或其他医生' });
       }
-      // 更新已用号源数
-      await pool.query(
-        'UPDATE daily_schedule SET used_quota = used_quota + 1 WHERE sched_id = ?',
+      // 原子更新号源（避免竞态）
+      const [updateResult] = await pool.query(
+        'UPDATE daily_schedule SET used_quota = used_quota + 1 WHERE sched_id = ? AND used_quota < total_quota',
         [scheduleRow.sched_id]
       );
+      if (updateResult.affectedRows === 0) {
+        return res.status(409).json({ error: '号源已被抢光，请选择加急或其他医生' });
+      }
     }
 
     await pool.query(
@@ -630,19 +645,26 @@ app.post(
       .slice(0, 3)
       .map(([dept, score]) => ({ dept_name: dept, score }));
 
-    // 从数据库中查询匹配科室的详细信息
-    const results = [];
-    for (const item of sorted) {
+    // 从数据库中批量查询匹配科室的详细信息（避免 N+1 查询）
+    const deptNames = sorted.map(item => item.dept_name);
+    let deptRows = [];
+    if (deptNames.length > 0) {
+      const placeholders = deptNames.map(() => '?').join(',');
       const [rows] = await pool.query(
-        'SELECT dept_id, dept_name, dept_intro FROM department WHERE dept_name = ? LIMIT 1',
-        [item.dept_name]
+        `SELECT dept_id, dept_name, dept_intro FROM department WHERE dept_name IN (${placeholders})`,
+        deptNames
       );
-      if (rows.length > 0) {
-        results.push({ ...rows[0], score: item.score });
-      } else {
-        results.push({ dept_id: null, dept_name: item.dept_name, dept_intro: null, score: item.score });
-      }
+      deptRows = rows;
     }
+    const deptMap = Object.fromEntries(deptRows.map(r => [r.dept_name, r]));
+
+    const results = sorted.map(item => {
+      const dept = deptMap[item.dept_name];
+      if (dept) {
+        return { ...dept, score: item.score };
+      }
+      return { dept_id: null, dept_name: item.dept_name, dept_intro: null, score: item.score };
+    });
 
     if (results.length === 0) {
       return res.json({ results: [], message: '根据描述无法确定科室，请咨询导诊台' });

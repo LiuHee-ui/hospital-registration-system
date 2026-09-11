@@ -33,7 +33,8 @@ const handleLogin = async () => {
   try {
     loading.value = true
     const res = await request.post('/api/login', form)
-    userStore.setLoginState(res.account, { username: res.account, perm_type: res.perm_type })
+    // 保存安全的 token 和用户信息
+    userStore.setLoginState(res.token, { username: res.account, perm_type: res.perm_type })
     alert('登录成功！')
     router.push('/index')
   } catch (err) {
