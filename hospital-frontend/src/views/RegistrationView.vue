@@ -125,7 +125,28 @@
       </div>
     </div>
 
-    <!-- 成功结果 -->
+    <!-- 成功结果 / 打印凭证对话框 -->
+    <el-dialog v-model="showTicket" title="挂号成功 - 打印凭证" width="450px" center destroy-on-close>
+      <!-- 需打印区域 (必须指定 id) -->
+      <div id="print-receipt" class="ticket-box" style="padding: 20px; border: 1px dashed #475569; border-radius: 8px;">
+        <h3 style="text-align: center; margin-bottom: 15px;">门诊挂号凭证</h3>
+        <el-divider />
+        <p><strong>挂号单号：</strong>#{{ successData?.reg_id }}</p>
+        <p><strong>就诊患者：</strong>{{ successData?.patient_name }}</p>
+        <p><strong>就诊科室：</strong>{{ successData?.dept_name }}</p>
+        <p><strong>出诊医生：</strong>{{ successData?.doctor_name }}</p>
+        <p><strong>就诊序号：</strong><span style="font-size: 20px; color: #409EFF; font-weight: bold;">{{ successData?.queueNum || '—'}} 号</span></p>
+        <p><strong>挂号时间：</strong>{{ successData?.reg_time }}</p>
+        <el-divider />
+        <p style="text-align: center; font-size: 12px; color: #94a3b8;">请凭此单据前往对应诊室候诊</p>
+      </div>
+      <template #footer>
+        <el-button v-print="'#print-receipt'" type="primary" icon="Printer">直接打印挂号单</el-button>
+        <el-button @click="handleCloseTicket">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 继续挂号按钮 -->
     <div v-if="successData" class="success-card">
       <div class="success-icon">✓</div>
       <h3>挂号成功！</h3>
@@ -136,7 +157,10 @@
         <p>科室：{{ successData.dept_name }}</p>
         <p>时间：{{ successData.reg_time }}</p>
       </div>
-      <button @click="resetForm" class="btn-primary">继续挂号</button>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button @click="handlePrintTicket" class="btn-primary">打印凭证</button>
+        <button @click="resetForm" class="btn-secondary">继续挂号</button>
+      </div>
     </div>
 
     <!-- 底部导航 -->
@@ -170,6 +194,7 @@ const selectedDoctorId = ref('')
 const recommending = ref(false)
 const submitting = ref(false)
 const successData = ref(null)
+const showTicket = ref(false)
 const currentPatientId = ref('') // 存储当前患者ID（find-or-create 返回）
 
 onMounted(async () => {
@@ -277,12 +302,21 @@ async function nextStep() {
 function resetForm() {
   currentStep.value = 0
   successData.value = null
+  showTicket.value = false
   form.value = { patient_name: '', gender: '男', birth_date: '', phone: '', id_card: '', medical_history: '', is_urgent: false }
   description.value = ''
   recommendResults.value = []
   selectedDeptId.value = ''
   selectedDoctorId.value = ''
   currentPatientId.value = ''
+}
+
+function handlePrintTicket() {
+  showTicket.value = true
+}
+
+function handleCloseTicket() {
+  showTicket.value = false
 }
 
 async function submitRegistration() {
@@ -321,6 +355,7 @@ async function submitRegistration() {
       dept_name: getDeptName(selectedDoctor.value?.dept_id),
       reg_time: new Date().toLocaleString(),
     }
+    showTicket.value = true
   } catch (e) {
     console.error('挂号失败', e)
     alert('挂号失败：' + (e.message || '请重试'))
@@ -382,5 +417,6 @@ async function submitRegistration() {
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-cancel { background: #9e9e9e; color: #fff; border: none; padding: 10px 24px; border-radius: 4px; cursor: pointer; font-size: 14px; }
 .btn-success { background: #4caf50; color: #fff; border: none; padding: 12px 32px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+.btn-secondary { background: #9e9e9e; color: #fff; border: none; padding: 10px 24px; border-radius: 4px; cursor: pointer; font-size: 14px; }
 .empty { grid-column: 1 / -1; text-align: center; color: #999; padding: 40px; }
 </style>
