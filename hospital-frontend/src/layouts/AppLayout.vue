@@ -13,11 +13,20 @@
         </router-link>
       </nav>
     </aside>
-    <main style="flex: 1; background: #f8f9fa; display: flex; flex-direction: column;">
-      <header style="background: #fff; padding: 15px 30px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-        <span>当前操作员：<strong>{{ userStore.userInfo.username || '管理员' }}</strong>
-          <el-tag size="small" style="margin-left: 8px;">{{ roleLabel }}</el-tag>
-        </span>
+    <main style="flex: 1; background: var(--el-bg-color); display: flex; flex-direction: column;">
+      <header style="background: var(--el-bg-color-page); padding: 15px 30px; border-bottom: 1px solid var(--el-border-color); display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <el-switch
+            v-model="isDark"
+            inline-prompt
+            active-icon="Moon"
+            inactive-icon="Sunny"
+            @change="toggleDark"
+          />
+          <span>当前操作员：<strong>{{ userStore.userInfo.username || '管理员' }}</strong>
+            <el-tag size="small" style="margin-left: 8px;">{{ roleLabel }}</el-tag>
+          </span>
+        </div>
         <button @click="handleLogout" style="padding: 6px 12px; background: #dc3545; color: #fff; border: none; border-radius: 4px; cursor: pointer;">退出登录</button>
       </header>
       <section style="padding: 24px; flex: 1;">
@@ -32,9 +41,13 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { asyncRoutes, resetRouter } from '../router/index'
+import { useDark, useToggle } from '@vueuse/core'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+const isDark = useDark()
+const toggleDark = useToggle(isDark)
 
 // 角色标签显示
 const roleLabel = computed(() => {
