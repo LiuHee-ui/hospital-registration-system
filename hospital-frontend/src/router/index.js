@@ -5,7 +5,8 @@ import { usePermissionStore } from '../stores/permission'
 // 1. 公开常驻路由
 export const constantRoutes = [
   { path: '/', redirect: '/login' },
-  { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue') }
+  { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue') },
+  { path: '/queue-display', name: 'QueueDisplay', component: () => import('../views/QueueDisplayView.vue') }
 ]
 
 // 2. 需权限校验的动态路由
