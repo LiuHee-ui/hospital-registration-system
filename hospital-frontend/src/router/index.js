@@ -1,44 +1,113 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { useUserStore } from '../stores/user'
+import { usePermissionStore } from '../stores/permission'
 
-// 路由懒加载：各页面组件按需从服务器拉取，减小首屏资源体积
-const routes = [
+// 1. 公开常驻路由
+export const constantRoutes = [
   { path: '/', redirect: '/login' },
-  {
-    path: '/login',
-    name: 'Login',
-    component: () => import('../views/LoginView.vue')
-  },
+  { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue') }
+]
+
+// 2. 需权限校验的动态路由
+export const asyncRoutes = [
   {
     path: '/',
     component: () => import('../layouts/AppLayout.vue'),
     children: [
-      { path: 'index', name: 'Home', component: () => import('../views/HomeView.vue') },
-      { path: 'departments', name: 'Departments', component: () => import('../views/DepartmentsView.vue') },
-      { path: 'doctors', name: 'Doctors', component: () => import('../views/DoctorsView.vue') },
-      { path: 'patients', name: 'Patients', component: () => import('../views/PatientsView.vue') },
-      { path: 'registration', name: 'Registration', component: () => import('../views/RegistrationView.vue') }
+      {
+        path: 'index',
+        name: 'Home',
+        component: () => import('../views/HomeView.vue'),
+        meta: { title: '控制台首页', roles: ['ADMIN', 'DOCTOR', 'RECEPTIONIST'] }
+      },
+      {
+        path: 'departments',
+        name: 'Departments',
+        component: () => import('../views/DepartmentsView.vue'),
+        meta: { title: '科室管理', roles: ['ADMIN'] }
+      },
+      {
+        path: 'doctors',
+        name: 'Doctors',
+        component: () => import('../views/DoctorsView.vue'),
+        meta: { title: '医生管理', roles: ['ADMIN'] }
+      },
+      {
+        path: 'patients',
+        name: 'Patients',
+        component: () => import('../views/PatientsView.vue'),
+        meta: { title: '患者档案', roles: ['ADMIN', 'RECEPTIONIST'] }
+      },
+      {
+        path: 'registration',
+        name: 'Registration',
+        component: () => import('../views/RegistrationView.vue'),
+        meta: { title: '挂号办理', roles: ['ADMIN', 'RECEPTIONIST'] }
+      },
+      {
+        path: 'schedules',
+        name: 'Schedules',
+        component: () => import('../views/SchedulesView.vue'),
+        meta: { title: '排班管理', roles: ['ADMIN', 'DOCTOR'] }
+      },
+      {
+        path: 'statistics',
+        name: 'Statistics',
+        component: () => import('../views/StatisticsView.vue'),
+        meta: { title: '数据统计', roles: ['ADMIN'] }
+      }
     ]
   }
 ]
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes
+  routes: constantRoutes
 })
 
-// 全局路由鉴权守卫
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('token')
-  const isLoginPage = to.path === '/login'
+// 3. 动态路由注入守卫
+let isRoutesAdded = false
+let addedRole = ''
 
-  if (!isLoginPage && !token) {
-    alert('请先登录系统！')
-    next('/login')
-  } else if (isLoginPage && token) {
-    next('/index')
-  } else {
-    next()
+// 重置路由状态（供登出时调用）
+export function resetRouter() {
+  isRoutesAdded = false
+  addedRole = ''
+}
+
+router.beforeEach(async (to, from, next) => {
+  const userStore = useUserStore()
+  const permissionStore = usePermissionStore()
+  const token = localStorage.getItem('token')
+
+  if (!token) {
+    if (to.path === '/login') return next()
+    return next('/login')
   }
+
+  if (to.path === '/login') {
+    return next('/index')
+  }
+
+  // 角色变更时重新添加路由
+  if (!isRoutesAdded || addedRole !== userStore.role) {
+    const role = userStore.role || 'ADMIN'
+    permissionStore.generateRoutes(role)
+
+    // 获取 layout 路由并注入子路由
+    const layoutRoute = asyncRoutes.find(r => r.path === '/')
+    if (layoutRoute && layoutRoute.children) {
+      layoutRoute.children.forEach(child => {
+        router.addRoute('/', child)
+      })
+    }
+
+    isRoutesAdded = true
+    addedRole = role
+    return next({ ...to, replace: true })
+  }
+
+  next()
 })
 
 export default router
