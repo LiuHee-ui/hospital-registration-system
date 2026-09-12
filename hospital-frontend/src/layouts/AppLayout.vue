@@ -4,7 +4,7 @@
       <h3 style="color: #fff; text-align: center; margin-bottom: 30px;">门诊管理系统</h3>
       <nav style="display: flex; flex-direction: column; gap: 10px;">
         <router-link
-          v-for="menu in menuList"
+          v-for="menu in permissionStore.routes"
           :key="menu.path"
           :to="'/' + menu.path"
           class="nav-item"
@@ -40,35 +40,25 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { asyncRoutes, resetRouter } from '../router/index'
+import { usePermissionStore } from '../stores/permission'
 import { useDark, useToggle } from '@vueuse/core'
+import { resetRouter } from '../router/index'
 
 const router = useRouter()
 const userStore = useUserStore()
+const permissionStore = usePermissionStore()
 
 const isDark = useDark()
 const toggleDark = useToggle(isDark)
 
-// 角色标签显示
 const roleLabel = computed(() => {
   const map = { ADMIN: '系统管理员', DOCTOR: '门诊医生', RECEPTIONIST: '挂号前台' }
   return map[userStore.role] || userStore.role || '未知'
 })
 
-// 提取 Layout 子路由中的有效菜单（根据权限过滤）
-const menuList = computed(() => {
-  const layoutRoute = asyncRoutes.find(r => r.path === '/')
-  if (!layoutRoute || !layoutRoute.children) return []
-
-  return layoutRoute.children.filter(child => {
-    if (!child.meta?.roles) return true
-    return child.meta.roles.includes(userStore.role)
-  })
-})
-
-// 登出
 const handleLogout = () => {
   resetRouter()
+  permissionStore.resetRoutes()
   userStore.logout()
   router.push('/login')
 }

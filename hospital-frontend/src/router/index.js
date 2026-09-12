@@ -70,7 +70,6 @@ const router = createRouter({
 let isRoutesAdded = false
 let addedRole = ''
 
-// 重置路由状态（供登出时调用）
 export function resetRouter() {
   isRoutesAdded = false
   addedRole = ''
@@ -86,25 +85,25 @@ router.beforeEach(async (to, from, next) => {
     return next('/login')
   }
 
-  if (to.path === '/login') {
-    return next('/index')
-  }
+  if (to.path === '/login') return next('/index')
 
-  // 角色变更时重新添加路由
   if (!isRoutesAdded || addedRole !== userStore.role) {
-    const role = userStore.role || 'ADMIN'
+    const role = userStore.role
+
+    if (!role) {
+      return next('/login')
+    }
+
     permissionStore.generateRoutes(role)
 
-    // 获取 layout 路由并注入子路由
     const layoutRoute = asyncRoutes.find(r => r.path === '/')
-    if (layoutRoute && layoutRoute.children) {
-      layoutRoute.children.forEach(child => {
-        router.addRoute('/', child)
-      })
+    if (layoutRoute) {
+      router.addRoute(layoutRoute)
     }
 
     isRoutesAdded = true
     addedRole = role
+
     return next({ ...to, replace: true })
   }
 

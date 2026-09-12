@@ -29,6 +29,14 @@ function asyncHandler(fn) {
   };
 }
 
+// 角色中文名 → 英文 code 映射
+const PERM_TYPE_MAP = {
+  '系统管理员': 'ADMIN',
+  '超级管理员': 'ADMIN',
+  '门诊医生': 'DOCTOR',
+  '挂号前台': 'RECEPTIONIST',
+};
+
 app.get(
   '/api/health',
   asyncHandler(async (req, res) => {
@@ -54,7 +62,8 @@ app.post(
     }
     // 使用 cryptographically secure random token
     const token = crypto.randomBytes(32).toString('hex');
-    res.json({ ok: true, token, account: rows[0].account, perm_type: rows[0].perm_type });
+    const permCode = PERM_TYPE_MAP[rows[0].perm_type] || rows[0].perm_type;
+    res.json({ ok: true, token, account: rows[0].account, perm_type: permCode });
   }),
 );
 

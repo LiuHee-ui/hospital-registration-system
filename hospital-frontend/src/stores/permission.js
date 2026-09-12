@@ -1,25 +1,27 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { constantRoutes, asyncRoutes } from '../router/index'
+import { asyncRoutes } from '../router/index'
 
 export const usePermissionStore = defineStore('permission', () => {
   const routes = ref([])
 
-  // 根据角色过滤动态路由
+  // 根据角色过滤动态路由，返回拍平的子路由数组
   function generateRoutes(role) {
-    const accessedRoutes = asyncRoutes.filter(route => {
-      // 检查子路由的 roles 元信息
-      if (!route.children) return true
-      return route.children.some(child => {
-        if (!child.meta?.roles) return true
-        return child.meta.roles.includes(role)
-      })
+    const layoutRoute = asyncRoutes.find(r => r.path === '/')
+    if (!layoutRoute || !layoutRoute.children) {
+      routes.value = []
+      return []
+    }
+
+    const accessedRoutes = layoutRoute.children.filter(child => {
+      if (!child.meta?.roles) return true
+      return child.meta.roles.includes(role)
     })
-    routes.value = constantRoutes.concat(accessedRoutes)
+
+    routes.value = accessedRoutes
     return accessedRoutes
   }
 
-  // 重置路由状态（登出时调用）
   function resetRoutes() {
     routes.value = []
   }
