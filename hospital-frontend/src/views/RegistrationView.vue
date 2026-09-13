@@ -73,25 +73,55 @@
       </div>
     </div>
 
-    <!-- 步骤3：选择医生 -->
+    <!-- 步骤3：选择医生和时段 -->
     <div v-if="currentStep === 2" class="step-content">
-      <h3>步骤3：选择医生</h3>
+      <h3>步骤3：选择医生与时段</h3>
+
+      <!-- 医生卡片 -->
       <div class="doctors-list">
         <div
-          v-for="doc in filteredDoctors"
+          v-for="doc in filteredSchedules"
           :key="doc.doctor_id"
-          :class="['doctor-card', { selected: selectedDoctorId === doc.doctor_id, 'no-quota': doc.remainQuota <= 0 && !form.is_urgent }]"
+          :class="['doctor-card', { selected: selectedDoctorId === doc.doctor_id, 'no-quota': doc.remain_quota <= 0 && !form.is_urgent }]"
           @click="selectDoctor(doc)"
         >
           <div class="doctor-name">{{ doc.doctor_name }}</div>
           <div class="doctor-info">{{ doc.title }} | {{ getDeptName(doc.dept_id) }}</div>
           <div class="doctor-specialty">{{ doc.specialty || '专长未填写' }}</div>
-          <div :class="['doctor-quota', { 'quota-zero': doc.remainQuota <= 0 }]">
-            剩余号源: {{ doc.remainQuota }}
-            <span v-if="doc.remainQuota <= 0 && !form.is_urgent">（号满，可勾选加急）</span>
+          <div :class="['doctor-quota', { 'quota-zero': doc.remain_quota <= 0 }]">
+            剩余号源: {{ doc.remain_quota }}
+            <span v-if="doc.remain_quota <= 0 && !form.is_urgent">（号满，可勾选加急）</span>
+          </div>
+          <div v-if="doc.slots && doc.slots.length" class="has-slots">
+            含分时段预约
           </div>
         </div>
-        <div v-if="!filteredDoctors.length" class="empty">该科室暂无医生</div>
+        <div v-if="!filteredSchedules.length" class="empty">该科室暂无医生</div>
+      </div>
+
+      <!-- 时段选择（选择医生后显示） -->
+      <div v-if="selectedDoctorId && availableSlots.length" class="slot-section">
+        <h4>选择就诊时段</h4>
+        <div class="slot-grid">
+          <div
+            v-for="slot in availableSlots"
+            :key="slot.slot_id"
+            :class="['slot-card', { selected: selectedSlotId === slot.slot_id, 'slot-full': slot.remain_quota <= 0 }]"
+            @click="selectSlot(slot)"
+          >
+            <div class="slot-label">{{ slot.slot_label }}</div>
+            <div :class="['slot-remain', { low: slot.remain_quota <= 0 }]">
+              {{ slot.remain_quota > 0 ? `剩余 ${slot.remain_quota}` : '已满' }}
+            </div>
+          </div>
+        </div>
+        <div v-if="!availableSlots.find(s => s.remain_quota > 0)" class="slot-warning">
+          该医生所有时段均已约满，请勾选"加急"或选择其他医生
+        </div>
+      </div>
+
+      <div v-if="selectedDoctorId && !availableSlots.length && !loadingSlots" class="slot-warning">
+        该医生暂未设置分时段，请勾选"加急"模式继续挂号
       </div>
     </div>
 
@@ -105,11 +135,15 @@
         </div>
         <div class="confirm-item">
           <label>科室：</label>
-          <span>{{ getDeptName(selectedDoctor?.dept_id) }}</span>
+          <span>{{ getDeptName(selectedSchedule?.dept_id) }}</span>
         </div>
         <div class="confirm-item">
           <label>医生：</label>
-          <span>{{ selectedDoctor?.doctor_name }} ({{ selectedDoctor?.title }})</span>
+          <span>{{ selectedSchedule?.doctor_name }} ({{ selectedSchedule?.title }})</span>
+        </div>
+        <div v-if="selectedSlot" class="confirm-item">
+          <label>就诊时段：</label>
+          <span class="slot-badge">{{ selectedSlot.slot_label }}</span>
         </div>
         <div class="confirm-item">
           <label>是否加急：</label>
@@ -127,7 +161,6 @@
 
     <!-- 成功结果 / 打印凭证对话框 -->
     <el-dialog v-model="showTicket" title="挂号成功 - 打印凭证" width="450px" center destroy-on-close>
-      <!-- 需打印区域 (必须指定 id) -->
       <div id="print-receipt" class="ticket-box" style="padding: 20px; border: 1px dashed #475569; border-radius: 8px;">
         <h3 style="text-align: center; margin-bottom: 15px;">门诊挂号凭证</h3>
         <el-divider />
@@ -135,6 +168,7 @@
         <p><strong>就诊患者：</strong>{{ successData?.patient_name }}</p>
         <p><strong>就诊科室：</strong>{{ successData?.dept_name }}</p>
         <p><strong>出诊医生：</strong>{{ successData?.doctor_name }}</p>
+        <p v-if="successData?.slot_label"><strong>就诊时段：</strong>{{ successData.slot_label }}</p>
         <p><strong>就诊序号：</strong><span style="font-size: 20px; color: #409EFF; font-weight: bold;">{{ successData?.queueNum || '—'}} 号</span></p>
         <p><strong>挂号时间：</strong>{{ successData?.reg_time }}</p>
         <el-divider />
@@ -155,6 +189,7 @@
         <p>患者：{{ successData.patient_name }}</p>
         <p>医生：{{ successData.doctor_name }}</p>
         <p>科室：{{ successData.dept_name }}</p>
+        <p v-if="successData.slot_label">时段：{{ successData.slot_label }}</p>
         <p>时间：{{ successData.reg_time }}</p>
       </div>
       <div style="display: flex; gap: 12px; justify-content: center;">
@@ -183,19 +218,20 @@ import request from '../api/request'
 const steps = ['患者登记', '智能分诊', '选择医生', '确认挂号']
 const currentStep = ref(0)
 const departments = ref([])
-const doctors = ref([])
-const schedules = ref([])
+const filteredSchedules = ref([]) // 含时段数据的排班
 
 const form = ref({ patient_name: '', gender: '男', birth_date: '', phone: '', id_card: '', medical_history: '', is_urgent: false })
 const description = ref('')
 const recommendResults = ref([])
 const selectedDeptId = ref('')
 const selectedDoctorId = ref('')
+const selectedSlotId = ref('')
 const recommending = ref(false)
 const submitting = ref(false)
+const loadingSlots = ref(false)
 const successData = ref(null)
 const showTicket = ref(false)
-const currentPatientId = ref('') // 存储当前患者ID（find-or-create 返回）
+const currentPatientId = ref('')
 
 onMounted(async () => {
   await loadData()
@@ -203,42 +239,51 @@ onMounted(async () => {
 
 async function loadData() {
   try {
-    const [dRes, docRes, schRes] = await Promise.all([
-      request.get('/api/departments'),
-      request.get('/api/doctors'),
-      request.get('/api/schedules')
+    const [dRes] = await Promise.all([
+      request.get('/api/departments')
     ])
     departments.value = dRes.data || dRes
-    doctors.value = docRes.data || docRes
-    schedules.value = schRes.data || schRes
   } catch (e) {
     console.error('加载数据失败', e)
   }
 }
 
-// 医生及其当日剩余号源
-const filteredDoctors = computed(() => {
-  if (!selectedDeptId.value) return []
-  const today = new Date().toISOString().slice(0, 10)
-  return doctors.value
-    .filter(d => d.dept_id === selectedDeptId.value)
-    .map(doc => {
-      // 查找该医生今日排班的剩余号源
-      const sched = schedules.value.find(
-        s => s.doctor_id === doc.doctor_id && s.sched_date === today
-      )
-      return {
-        ...doc,
-        remainQuota: sched ? sched.remain_quota : 0
-      }
-    })
-})
+async function loadSchedulesWithSlots() {
+  if (!selectedDeptId.value) return
+  loadingSlots.value = true
+  try {
+    const res = await request.get('/api/schedules-with-slots')
+    const all = Array.isArray(res) ? res : (res.data || [])
+    const today = new Date().toISOString().slice(0, 10)
+    filteredSchedules.value = all.filter(s => s.dept_id === selectedDeptId.value && s.sched_date === today)
+  } catch (e) {
+    console.error('加载排班失败', e)
+  } finally {
+    loadingSlots.value = false
+  }
+}
 
-const selectedDoctor = computed(() => doctors.value.find(d => d.doctor_id === selectedDoctorId.value))
+const selectedSchedule = computed(() =>
+  filteredSchedules.value.find(s => s.doctor_id === selectedDoctorId.value)
+)
+
+const availableSlots = computed(() =>
+  selectedSchedule.value?.slots || []
+)
+
+const selectedSlot = computed(() =>
+  availableSlots.value.find(s => s.slot_id === selectedSlotId.value)
+)
 
 const canNext = computed(() => {
   if (currentStep.value === 0) return form.value.patient_name && form.value.gender && form.value.id_card
-  if (currentStep.value === 2) return selectedDoctorId.value
+  if (currentStep.value === 2) {
+    if (!selectedDoctorId.value) return false
+    // 无时段医生允许加急通过，有时段必须选或加急
+    if (availableSlots.value.length === 0) return form.value.is_urgent
+    if (!selectedSlotId.value && !form.value.is_urgent) return false
+    return true
+  }
   return true
 })
 
@@ -253,7 +298,6 @@ async function recommendDeptApi() {
     const res = await request.post('/api/recommend-dept', { description: description.value })
     recommendResults.value = res.results || []
   } catch (e) {
-    console.error('推荐失败', e)
     alert('推荐失败：' + e.message)
   } finally {
     recommending.value = false
@@ -263,15 +307,25 @@ async function recommendDeptApi() {
 function selectDept(r) {
   selectedDeptId.value = r.dept_id
   selectedDoctorId.value = ''
+  selectedSlotId.value = ''
+  loadSchedulesWithSlots()
 }
 
 function selectDoctor(doc) {
-  // 非加急但号源为0时提示
-  if (doc.remainQuota <= 0 && !form.value.is_urgent) {
+  if (doc.remain_quota <= 0 && !form.value.is_urgent) {
     alert('当前医生号源已满，请勾选"加急"后再试！')
     return
   }
   selectedDoctorId.value = doc.doctor_id
+  selectedSlotId.value = ''
+}
+
+function selectSlot(slot) {
+  if (slot.remain_quota <= 0) {
+    alert('该时段已满，请选择其他时段！')
+    return
+  }
+  selectedSlotId.value = slot.slot_id
 }
 
 async function nextStep() {
@@ -279,7 +333,6 @@ async function nextStep() {
     alert('请选择科室')
     return
   }
-  // 步骤0：患者登记 -> 调用 find-or-create 创建或获取患者
   if (currentStep.value === 0) {
     try {
       const res = await request.post('/api/patients/find-or-create', {
@@ -308,7 +361,9 @@ function resetForm() {
   recommendResults.value = []
   selectedDeptId.value = ''
   selectedDoctorId.value = ''
+  selectedSlotId.value = ''
   currentPatientId.value = ''
+  filteredSchedules.value = []
 }
 
 function handlePrintTicket() {
@@ -323,41 +378,26 @@ async function submitRegistration() {
   submitting.value = true
   try {
     const today = new Date().toISOString().slice(0, 10)
-    const selectedDoc = filteredDoctors.value.find(d => d.doctor_id === selectedDoctorId.value)
-
-    // 提交前二次校验：非加急且号源为0则拦截
-    if (selectedDoc && selectedDoc.remainQuota <= 0 && !form.value.is_urgent) {
-      alert('当前医生号源已满，请勾选"加急"后再试！')
-      submitting.value = false
-      return
-    }
-
     const reg_id = 'R' + today.replace(/-/g, '') + String(Math.floor(Math.random() * 10000)).padStart(4, '0')
+
     await request.post('/api/registrations', {
       reg_id,
       patient_id: currentPatientId.value,
       doctor_id: selectedDoctorId.value,
       is_urgent: form.value.is_urgent,
+      slot_id: selectedSlotId.value || null,
     })
-
-    // 成功后扣减前端号源（普通号扣减，加急号不扣）
-    if (selectedDoc && selectedDoc.remainQuota > 0 && !form.value.is_urgent) {
-      const sched = schedules.value.find(
-        s => s.doctor_id === selectedDoctorId.value && s.sched_date === today
-      )
-      if (sched) sched.remain_quota--
-    }
 
     successData.value = {
       reg_id,
       patient_name: form.value.patient_name,
-      doctor_name: selectedDoctor.value?.doctor_name,
-      dept_name: getDeptName(selectedDoctor.value?.dept_id),
+      doctor_name: selectedSchedule.value?.doctor_name,
+      dept_name: getDeptName(selectedSchedule.value?.dept_id),
+      slot_label: selectedSlot.value?.slot_label || null,
       reg_time: new Date().toLocaleString(),
     }
     showTicket.value = true
   } catch (e) {
-    console.error('挂号失败', e)
     alert('挂号失败：' + (e.message || '请重试'))
   } finally {
     submitting.value = false
@@ -394,6 +434,7 @@ async function submitRegistration() {
 .doctor-quota.quota-zero { color: #f44336; }
 .doctor-card.no-quota { opacity: 0.7; cursor: not-allowed; }
 .doctor-card.no-quota:hover { border-color: #ddd; }
+.has-slots { font-size: 11px; color: #4caf50; margin-top: 4px; font-weight: 500; }
 .recommend-results { margin-top: 20px; }
 .recommend-results h4 { margin: 0 0 12px; }
 .recommend-item { padding: 12px 16px; background: #f5f5f5; border-radius: 6px; margin-bottom: 8px; cursor: pointer; border: 2px solid transparent; }
@@ -402,9 +443,24 @@ async function submitRegistration() {
 .recommend-item strong { display: block; margin-bottom: 4px; }
 .recommend-item span { font-size: 13px; color: #666; }
 .match-score { display: block; margin-top: 4px; color: #ff9800; font-weight: 500; }
+
+/* 时段选择 */
+.slot-section { margin-top: 24px; border-top: 1px solid #eee; padding-top: 20px; }
+.slot-section h4 { margin: 0 0 12px; color: #333; }
+.slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.slot-card { background: #f5f5f5; border: 2px solid transparent; border-radius: 6px; padding: 12px; cursor: pointer; text-align: center; transition: all 0.2s; }
+.slot-card:hover { border-color: #1976d2; }
+.slot-card.selected { border-color: #1976d2; background: #e3f2fd; }
+.slot-card.slot-full { opacity: 0.5; cursor: not-allowed; }
+.slot-label { font-weight: 600; font-size: 14px; margin-bottom: 4px; color: #333; }
+.slot-remain { font-size: 12px; color: #4caf50; }
+.slot-remain.low { color: #f44336; }
+.slot-warning { background: #fff3e0; border: 1px solid #ffb74d; border-radius: 6px; padding: 10px 16px; color: #e65100; font-size: 13px; margin-top: 16px; }
+
 .confirm-card { max-width: 400px; }
 .confirm-item { display: flex; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
 .confirm-item label { font-weight: 500; color: #666; min-width: 70px; }
+.slot-badge { background: #e3f2fd; color: #1976d2; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
 .checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .confirm-actions { margin-top: 24px; }
 .success-card { background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }

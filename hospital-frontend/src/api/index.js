@@ -65,9 +65,17 @@ export const deleteRegistration = (reg_id) => api.delete(`/registrations/${reg_i
 // 排班
 export const getSchedules = (date) =>
   date ? api.get(`/schedules?date=${date}`) : api.get('/schedules')
+export const getSchedulesWithSlots = (date) =>
+  date ? api.get(`/schedules-with-slots?date=${date}`) : api.get('/schedules-with-slots')
 export const addSchedule = (data) => api.post('/schedules', data)
 export const updateSchedule = (sched_id, data) => api.put(`/schedules/${sched_id}`, data)
 export const deleteSchedule = (sched_id) => api.delete(`/schedules/${sched_id}`)
+
+// 时段
+export const getSlots = (sched_id) => api.get(`/schedules/${sched_id}/slots`)
+export const addSlots = (sched_id, slots) => api.post(`/schedules/${sched_id}/slots`, { slots })
+export const deleteSlot = (slot_id) => api.delete(`/slots/${slot_id}`)
+export const updateSlot = (slot_id, data) => api.patch(`/slots/${slot_id}`, data)
 
 // 统计
 export const getStatisticsSummary = () => api.get('/statistics/summary')

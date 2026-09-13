@@ -369,7 +369,7 @@ app.get(
 app.post(
   '/api/registrations',
   asyncHandler(async (req, res) => {
-    const { reg_id, patient_id, doctor_id, visit_status, reg_time, is_urgent } = req.body || {};
+    const { reg_id, patient_id, doctor_id, visit_status, reg_time, is_urgent, slot_id } = req.body || {};
     if (!reg_id || !patient_id || !doctor_id) {
       return res.status(400).json({ error: '挂号编号、患者编号、医生编号为必填' });
     }
@@ -402,10 +402,21 @@ app.post(
       }
     }
 
+    // 如果选择了时段，原子扣减时段号源
+    if (slot_id && !urgent) {
+      const [slotResult] = await pool.query(
+        'UPDATE time_slot SET used_quota = used_quota + 1 WHERE slot_id = ? AND used_quota < total_quota',
+        [slot_id]
+      );
+      if (slotResult.affectedRows === 0) {
+        return res.status(409).json({ error: '该时段号源已满，请选择其他时段' });
+      }
+    }
+
     await pool.query(
-      `INSERT INTO registration (reg_id, patient_id, doctor_id, reg_time, visit_status, is_urgent)
-       VALUES (?, ?, ?, COALESCE(?, NOW()), ?, ?)`,
-      [reg_id, patient_id, doctor_id, rt, status, urgent],
+      `INSERT INTO registration (reg_id, patient_id, doctor_id, reg_time, visit_status, is_urgent, slot_id)
+       VALUES (?, ?, ?, COALESCE(?, NOW()), ?, ?, ?)`,
+      [reg_id, patient_id, doctor_id, rt, status, urgent, slot_id || null],
     );
     const [rows] = await pool.query(
       `
@@ -599,6 +610,117 @@ app.delete(
     const [r] = await pool.query('DELETE FROM daily_schedule WHERE sched_id = ?', [sched_id]);
     if (r.affectedRows === 0) return res.status(404).json({ error: '未找到该排班记录' });
     res.json({ ok: true });
+  }),
+);
+
+/* ---------- time_slot 分时段号源 ---------- */
+
+// 查询某排班的所有时段
+app.get(
+  '/api/schedules/:sched_id/slots',
+  asyncHandler(async (req, res) => {
+    const { sched_id } = req.params;
+    const [rows] = await pool.query(
+      'SELECT slot_id, sched_id, slot_label, slot_time, total_quota, used_quota, (total_quota - used_quota) AS remain_quota FROM time_slot WHERE sched_id = ? ORDER BY slot_time',
+      [sched_id]
+    );
+    res.json(rows.map(r => ({ ...r, remain_quota: Number(r.remain_quota) })));
+  }),
+);
+
+// 批量新增时段（创建排班时自动生成默认时段）
+app.post(
+  '/api/schedules/:sched_id/slots',
+  asyncHandler(async (req, res) => {
+    const { sched_id } = req.params;
+    const { slots } = req.body || {}; // slots: [{ slot_label, slot_time, total_quota }]
+    if (!slots || !Array.isArray(slots)) {
+      return res.status(400).json({ error: 'slots 为必填数组' });
+    }
+    for (const slot of slots) {
+      if (!slot.slot_label || !slot.slot_time || slot.total_quota === undefined) {
+        return res.status(400).json({ error: 'slot_label、slot_time、total_quota 为必填' });
+      }
+    }
+    const values = slots.map(s => [sched_id, s.slot_label, s.slot_time, Number(s.total_quota), 0]);
+    await pool.query(
+      'INSERT INTO time_slot (sched_id, slot_label, slot_time, total_quota, used_quota) VALUES ?',
+      [values]
+    );
+    const [rows] = await pool.query(
+      'SELECT slot_id, sched_id, slot_label, slot_time, total_quota, used_quota FROM time_slot WHERE sched_id = ? ORDER BY slot_time',
+      [sched_id]
+    );
+    res.status(201).json({ ok: true, slots: rows });
+  }),
+);
+
+// 删除单个时段
+app.delete(
+  '/api/slots/:slot_id',
+  asyncHandler(async (req, res) => {
+    const { slot_id } = req.params;
+    const [r] = await pool.query('DELETE FROM time_slot WHERE slot_id = ?', [slot_id]);
+    if (r.affectedRows === 0) return res.status(404).json({ error: '未找到该时段' });
+    res.json({ ok: true });
+  }),
+);
+
+// 修改时段可用号源
+app.patch(
+  '/api/slots/:slot_id',
+  asyncHandler(async (req, res) => {
+    const { slot_id } = req.params;
+    const { total_quota } = req.body || {};
+    if (total_quota === undefined) return res.status(400).json({ error: 'total_quota 为必填' });
+    const [r] = await pool.query(
+      'UPDATE time_slot SET total_quota = ? WHERE slot_id = ?',
+      [Number(total_quota), slot_id]
+    );
+    if (r.affectedRows === 0) return res.status(404).json({ error: '未找到该时段' });
+    res.json({ ok: true });
+  }),
+);
+
+// 查询所有排班的时段汇总（给前端挂号用）
+app.get(
+  '/api/schedules-with-slots',
+  asyncHandler(async (req, res) => {
+    const { date } = req.query;
+    const [schedules] = await pool.query(`
+      SELECT ds.sched_id, ds.doctor_id, doc.doctor_name, dep.dept_name,
+             ds.sched_date, ds.total_quota, ds.used_quota
+      FROM daily_schedule ds
+      JOIN doctor doc ON doc.doctor_id = ds.doctor_id
+      JOIN department dep ON dep.dept_id = doc.dept_id
+      ${date ? 'WHERE ds.sched_date = ?' : ''}
+      ORDER BY ds.sched_date DESC, dep.dept_name, doc.doctor_name
+    `, date ? [date] : []);
+
+    const [allSlots] = await pool.query(
+      'SELECT slot_id, sched_id, slot_label, slot_time, total_quota, used_quota FROM time_slot ORDER BY slot_time'
+    );
+
+    const slotMap = {}
+    for (const s of allSlots) {
+      if (!slotMap[s.sched_id]) slotMap[s.sched_id] = []
+      slotMap[s.sched_id].push({
+        slot_id: s.slot_id,
+        slot_label: s.slot_label,
+        slot_time: s.slot_time,
+        total_quota: s.total_quota,
+        used_quota: s.used_quota,
+        remain_quota: s.total_quota - s.used_quota
+      })
+    }
+
+    const result = schedules.map(s => ({
+      ...s,
+      remain_quota: s.total_quota - s.used_quota,
+      slots: slotMap[s.sched_id] || []
+    }))
+
+    res.json(result)
   }),
 );
 

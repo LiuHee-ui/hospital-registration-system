@@ -10,38 +10,41 @@
     </div>
 
     <div v-if="loading" class="loading">加载中...</div>
-    <table v-else class="data-table">
-      <thead>
-        <tr>
-          <th>医生</th>
-          <th>科室</th>
-          <th>日期</th>
-          <th>总号源</th>
-          <th>已用</th>
-          <th>剩余</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="s in schedules" :key="s.sched_id">
-          <td>{{ s.doctor_name }}</td>
-          <td>{{ s.dept_name }}</td>
-          <td>{{ s.sched_date }}</td>
-          <td>{{ s.total_quota }}</td>
-          <td>{{ s.used_quota }}</td>
-          <td>{{ s.remain_quota }}</td>
-          <td>
-            <button @click="openEditModal(s)" class="btn-edit">编辑</button>
-            <button @click="handleDelete(s.sched_id)" class="btn-danger">删除</button>
-          </td>
-        </tr>
-        <tr v-if="!schedules.length">
-          <td colspan="7" class="empty">暂无数据</td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>医生</th>
+            <th>科室</th>
+            <th>日期</th>
+            <th>总号源</th>
+            <th>已用</th>
+            <th>剩余</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="s in schedules" :key="s.sched_id">
+            <td>{{ s.doctor_name }}</td>
+            <td>{{ s.dept_name }}</td>
+            <td>{{ s.sched_date }}</td>
+            <td>{{ s.total_quota }}</td>
+            <td>{{ s.used_quota }}</td>
+            <td>{{ s.remain_quota }}</td>
+            <td>
+              <button @click="openSlotModal(s)" class="btn-slot">时段管理</button>
+              <button @click="openEditModal(s)" class="btn-edit">编辑</button>
+              <button @click="handleDelete(s.sched_id)" class="btn-danger">删除</button>
+            </td>
+          </tr>
+          <tr v-if="!schedules.length">
+            <td colspan="7" class="empty">暂无数据</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-    <!-- 弹窗 -->
+    <!-- 排班弹窗 -->
     <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
       <div class="modal">
         <h3>{{ isEdit ? '编辑排班' : '新增排班' }}</h3>
@@ -71,12 +74,47 @@
         </form>
       </div>
     </div>
+
+    <!-- 时段管理弹窗 -->
+    <div v-if="showSlotModal" class="modal-overlay" @click.self="closeSlotModal">
+      <div class="modal" style="width: 600px;">
+        <h3>时段管理 - {{ currentSchedule?.doctor_name }} ({{ currentSchedule?.sched_date }})</h3>
+
+        <!-- 自动生成时段 -->
+        <div style="background:#f5f5f5;padding:12px;border-radius:6px;margin-bottom:16px;">
+          <p style="margin:0 0 8px;font-size:13px;color:#666;">自动生成默认时段（上午 4 个 + 下午 4 个）</p>
+          <button @click="autoGenerateSlots" class="btn-primary" :disabled="generating">
+            {{ generating ? '生成中...' : '一键生成时段' }}
+          </button>
+        </div>
+
+        <!-- 时段列表 -->
+        <div v-if="slotList.length" class="slot-list">
+          <div v-for="slot in slotList" :key="slot.slot_id" class="slot-item">
+            <div class="slot-info">
+              <span class="slot-label">{{ slot.slot_label }}</span>
+              <span class="slot-remain" :class="{ low: slot.remain_quota <= 0 }">
+                剩余 {{ slot.remain_quota }}/{{ slot.total_quota }}
+              </span>
+            </div>
+            <div class="slot-actions">
+              <button @click="deleteSlot(slot.slot_id)" class="btn-danger btn-sm">删除</button>
+            </div>
+          </div>
+        </div>
+        <div v-else class="empty" style="padding:20px;">暂无时段，请点击"一键生成时段"</div>
+
+        <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+          <button @click="closeSlotModal" class="btn-cancel">关闭</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getSchedules, addSchedule, updateSchedule, deleteSchedule, getDoctors, getDepartments } from '@/api'
+import { getSchedulesWithSlots, addSchedule, updateSchedule, deleteSchedule, getDoctors, getDepartments, getSlots, addSlots, deleteSlot as apiDeleteSlot } from '@/api'
 
 const schedules = ref([])
 const doctors = ref([])
@@ -88,6 +126,12 @@ const isEdit = ref(false)
 const submitting = ref(false)
 const form = ref({ doctor_id: '', sched_date: '', total_quota: 20 })
 
+// 时段
+const showSlotModal = ref(false)
+const currentSchedule = ref(null)
+const slotList = ref([])
+const generating = ref(false)
+
 onMounted(async () => {
   doctors.value = await getDoctors()
   departments.value = await getDepartments()
@@ -97,7 +141,8 @@ onMounted(async () => {
 async function loadData() {
   loading.value = true
   try {
-    schedules.value = filterDate.value ? await getSchedules(filterDate.value) : await getSchedules()
+    const date = filterDate.value || undefined
+    schedules.value = await getSchedulesWithSlots(date)
   } catch (e) {
     alert(e.message)
   } finally {
@@ -143,10 +188,65 @@ async function handleSubmit() {
 }
 
 async function handleDelete(id) {
-  if (!confirm('确定删除该排班？')) return
+  if (!confirm('确定删除该排班？（关联时段也会一并删除）')) return
   try {
     await deleteSchedule(id)
     await loadData()
+  } catch (e) {
+    alert(e.message)
+  }
+}
+
+// 时段管理
+async function openSlotModal(s) {
+  currentSchedule.value = s
+  showSlotModal.value = true
+  await loadSlots(s.sched_id)
+}
+
+function closeSlotModal() {
+  showSlotModal.value = false
+  currentSchedule.value = null
+  slotList.value = []
+}
+
+async function loadSlots(schedId) {
+  try {
+    slotList.value = await getSlots(schedId)
+  } catch (e) {
+    alert(e.message)
+  }
+}
+
+// 一键生成默认时段：上午 4 个、下午 4 个
+async function autoGenerateSlots() {
+  if (!currentSchedule.value) return
+  generating.value = true
+  try {
+    const slots = [
+      { slot_label: '上午 09:00-09:30', slot_time: '09:00:00', total_quota: 5 },
+      { slot_label: '上午 09:30-10:00', slot_time: '09:30:00', total_quota: 5 },
+      { slot_label: '上午 10:00-10:30', slot_time: '10:00:00', total_quota: 5 },
+      { slot_label: '上午 10:30-11:00', slot_time: '10:30:00', total_quota: 5 },
+      { slot_label: '下午 14:00-14:30', slot_time: '14:00:00', total_quota: 5 },
+      { slot_label: '下午 14:30-15:00', slot_time: '14:30:00', total_quota: 5 },
+      { slot_label: '下午 15:00-15:30', slot_time: '15:00:00', total_quota: 5 },
+      { slot_label: '下午 15:30-16:00', slot_time: '15:30:00', total_quota: 5 },
+    ]
+    await addSlots(currentSchedule.value.sched_id, slots)
+    await loadSlots(currentSchedule.value.sched_id)
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    generating.value = false
+  }
+}
+
+async function deleteSlot(slotId) {
+  if (!confirm('确定删除该时段？')) return
+  try {
+    await apiDeleteSlot(slotId)
+    await loadSlots(currentSchedule.value.sched_id)
   } catch (e) {
     alert(e.message)
   }
@@ -170,12 +270,23 @@ async function handleDelete(id) {
 .btn-primary:disabled { opacity: 0.7; }
 .btn-edit { background: #ff9800; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; margin-right: 8px; }
 .btn-danger { background: #f44336; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; }
+.btn-slot { background: #4caf50; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; margin-right: 8px; }
 .btn-cancel { background: #9e9e9e; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
-.modal { background: #fff; padding: 24px; border-radius: 8px; width: 400px; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal { background: #fff; padding: 24px; border-radius: 8px; width: 400px; max-height: 80vh; overflow-y: auto; }
 .modal h3 { margin: 0 0 20px; }
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; margin-bottom: 6px; font-weight: 500; }
 .form-group input, .form-group select { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+
+/* 时段列表 */
+.slot-list { display: flex; flex-direction: column; gap: 8px; }
+.slot-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f9f9f9; border-radius: 6px; }
+.slot-info { display: flex; align-items: center; gap: 16px; }
+.slot-label { font-weight: 500; color: #333; }
+.slot-remain { font-size: 13px; color: #4caf50; }
+.slot-remain.low { color: #f44336; }
+.slot-actions { display: flex; gap: 8px; }
+.btn-sm { padding: 3px 10px; font-size: 12px; }
 </style>
